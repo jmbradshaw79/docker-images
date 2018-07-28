@@ -60,10 +60,6 @@ function launchmaster() {
     mkdir /redis-master-data
   fi
 
-  if [ -n "$REDIS_PASS" ]; then
-    sed -i "s/# requirepass/requirepass ${REDIS_PASS} \n#/" $MASTER_CONF
-  fi
-
   redis-server $MASTER_CONF --protected-mode no $@
 }
 
@@ -89,19 +85,6 @@ function launchsentinel() {
     echo "Connecting to master failed.  Waiting..."
     sleep 10
   done
-
-  echo "sentinel monitor mymaster ${MASTER_IP} ${MASTER_LB_PORT} ${QUORUM}" > ${SENTINEL_CONF}
-  echo "sentinel down-after-milliseconds mymaster 15000" >> ${SENTINEL_CONF}
-  echo "sentinel failover-timeout mymaster 30000" >> ${SENTINEL_CONF}
-  echo "sentinel parallel-syncs mymaster 10" >> ${SENTINEL_CONF}
-  echo "bind 0.0.0.0" >> ${SENTINEL_CONF}
-  echo "sentinel client-reconfig-script mymaster /usr/local/bin/promote.sh" >> ${SENTINEL_CONF}
-
-  if [ -n "$REDIS_PASS" ]; then
-   echo "sentinel auth-pass mymaster ${REDIS_PASS}" >> ${SENTINEL_CONF}
-  elif [ -f "$REDIS_PASSWORD_FILE" ]; then
-   echo "sentinel auth-pass mymaster $(cat $REDIS_PASSWORD_FILE)" >> ${SENTINEL_CONF}
-  fi  
 
   redis-sentinel ${SENTINEL_CONF} --protected-mode no $@
 }
@@ -132,13 +115,6 @@ function launchslave() {
     sleep 1
   done
 
-  if [ -n "$REDIS_PASS" ]; then
-    sed -i "s/# masterauth/masterauth ${REDIS_PASS} \n#/" $SLAVE_CONF
-    sed -i "s/# requirepass/requirepass ${REDIS_PASS} \n#/" $SLAVE_CONF
-  fi
-
-  sed -i "s/%master-ip%/${MASTER_LB_HOST}/" $SLAVE_CONF
-  sed -i "s/%master-port%/${MASTER_LB_PORT}/" $SLAVE_CONF
   redis-server $SLAVE_CONF --protected-mode no $@
 }
 
